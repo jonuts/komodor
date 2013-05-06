@@ -85,7 +85,7 @@ module Komodor
         self
       end
 
-      def runners
+      def runners(*opts)
         @runners ||= []
       end
 

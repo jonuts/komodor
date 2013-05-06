@@ -5,11 +5,13 @@ require "thread"
 require "ostruct"
 require "bundler/setup"
 Bundler.require :default
+require_relative "komodor/server"
+require_relative "komodor/request"
 require_relative "komodor/herd"
 
 module Komodor
   class << self
-    attr_accessor :server_spawned
+    attr_accessor :server_spawned, :server, :server_thread
 
     def config
       @config ||= OpenStruct.new
@@ -59,65 +61,20 @@ module Komodor
     end
 
     def start!
-      srv_thread = Thread.new {spawn_server}
-      until server_spawned?
-        sleep 0.2
-      end
+      spawn_server
+      sleep 0.2 until server_spawned?
       send_data(action: 'protect')
-      srv_thread.join
+      server_thread.join
     end
 
     def server_spawned?
-      srvlock.synchronize do
-        !!@server_spawned
-      end
+      !!server_spawned
     end
 
     def spawn_server
-      server = TCPServer.new(config.host, config.port)
-      srvlock.synchronize do
-        self.server_spawned = true
-      end
-
-      loop do
-        Thread.start(server.accept) do |sock|
-          begin
-            data   = JSON.load(sock.gets.chomp)
-            action = data['action']
-            q      = data['queue'].to_sym if data['queue']
-
-            Komodor.write(:info, "connected :: #{data.inspect}")
-
-            case action
-            when 'quit', 'exit'
-              FileUtils.rm config.pidfile if File.exists?(config.pidfile)
-              exit 0
-            when 'protect'
-              Herd.protect!
-              sock.puts YAML.dump(response: "ok", running: Herd.running)
-            when 'get'
-              sock.puts YAML.dump(collection[q])
-            when 'remove'
-              queue = collection[q]
-              collection.delete(q) if queue
-              sock.puts YAML.dump(response(collection))
-            when 'set'
-              collection[q] = Herd[q] unless collection[q]
-              sock.puts YAML.dump(collection[q])
-            else
-              args   = data['args']
-              queue  = collection[q]
-              resp = queue.send(action, *args)
-
-              sock.puts YAML.dump(response: resp)
-            end
-          rescue => e
-            Komodor.write(:error, "[ERRROR] #{[e.class, e.message].join(" ~> ")}")
-          ensure
-            sock.close
-          end
-        end
-      end
+      self.server         = Server.new(config.host, config.port)
+      self.server_thread  = Thread.new {server.run!}
+      self.server_spawned = true
     end
 
     def stop!

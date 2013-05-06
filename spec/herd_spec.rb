@@ -1,5 +1,4 @@
-require 'spec_helper'
-
+require 'spec_helper' 
 class GoodHerd < Komodor::Herd
   key :good
   cmd :foo
