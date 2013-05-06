@@ -1,13 +1,10 @@
-lib = File.expand_path("..", __FILE__)
-$:.push(lib) unless $:.include?(lib)
-
 require "socket"
 require "yaml"
 require "json"
 require "thread"
 require "bundler/setup"
 Bundler.require :default
-require "komodor/herd"
+require_relative "komodor/herd"
 
 module Komodor
   PIDFILE = "/tmp/komodor.pid"
