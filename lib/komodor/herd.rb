@@ -20,8 +20,6 @@ module Komodor
 
       def protect!
         collection.each do |herd|
-          raise KeyRequired, "your herd requires a key to start" unless herd.key
-          raise NoStartBlock, "no startup block provided" unless herd.hooks[:start]
           herd.start(&herd.hooks[:start])
         end
       end
