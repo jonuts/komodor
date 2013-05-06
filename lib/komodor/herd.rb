@@ -58,7 +58,12 @@ module Komodor
           loop do
             Thread.start(queue.shift) do |cmd|
               runner = new(cmd)
-              runner.instance_eval(&runblk)
+              begin
+                runner.instance_eval(&runblk)
+              rescue => e
+                runner.status = :error
+                runner.message = [e.class, e.message].join(" ~> ")
+              end
             end
           end
         end
@@ -98,10 +103,12 @@ module Komodor
       self.class.runners << self
     end
 
-    attr_reader :status, :args
+    attr_reader :args
+    attr_accessor :status, :message
 
-    def complete
+    def complete(msg=nil)
       @status = :done
+      @message = msg || "done"
       Komodor.write :debug, "completing #{inspect}"
     end
   end

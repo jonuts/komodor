@@ -73,4 +73,32 @@ describe Komodor::Herd do
       end
     end
   end
+
+  describe "errors" do
+    before :all do
+      class FooHerd < Komodor::Herd
+        key :foo
+        on(:start) {lolerror}
+      end
+      @srv = Thread.new {Komodor.start!}
+      sleep 0.3
+      Komodor.add(:foo, true)
+      @runners = Komodor.runners(:foo)[:response]
+    end
+
+    after :all do
+      Komodor::Herd.send(:collection).clear
+      Komodor.remove(:foo)
+      Object.send(:remove_const, :FooHerd)
+      @srv.kill
+    end
+
+    specify "status is set to error" do
+      @runners.first.status.should eql(:error)
+    end
+
+    specify "message is set" do
+      @runners.first.message.should match(/^NameError.+lolerror/)
+    end
+  end
 end
