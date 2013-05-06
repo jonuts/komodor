@@ -2,30 +2,30 @@ require "socket"
 require "yaml"
 require "json"
 require "thread"
+require "ostruct"
 require "bundler/setup"
 Bundler.require :default
 require_relative "komodor/herd"
 
 module Komodor
-  PIDFILE = "/tmp/komodor.pid"
-  HOST = '0'
-  PORT = 60001
-
   class << self
     attr_accessor :server_spawned
 
-    def loglock
-      @loglock ||= Mutex.new
+    def config
+      @config ||= OpenStruct.new
+      yield @config if block_given?
+      @config
     end
 
     def srvlock
       @srvlock ||= Mutex.new
     end
 
-    def write(stuff)
-      loglock.synchronize do
-        tstamp = Time.now.strftime("[%D %T]")
-        File.open("/tmp/gah.log", "a+") {|f| f.puts [tstamp, stuff].join(" :: ")}
+    def write(lvl, stuff)
+      if config.logger
+        config.logger.send(lvl, stuff)
+      elsif config.suppress_output
+        STDOUT.puts stuff
       end
     end
 
@@ -45,7 +45,7 @@ module Komodor
 
     def startd!
       if running?
-        puts "[komodor] running. pid #{File.read(PIDFILE)}"
+        write :info, "[komodor] running. pid #{File.read(config.pidfile)}"
         exit 0
       end
 
@@ -54,8 +54,8 @@ module Komodor
         start!
       end
 
-      File.open(PIDFILE, 'w') {|f| f.puts pid}
-      puts "[komodor] running. pid #{File.read(PIDFILE)}"
+      File.open(config.pidfile, 'w') {|f| f.puts pid}
+      write :info, "[komodor] running. pid #{pid}"
     end
 
     def start!
@@ -74,7 +74,7 @@ module Komodor
     end
 
     def spawn_server
-      server = TCPServer.new(HOST, PORT)
+      server = TCPServer.new(config.host, config.port)
       srvlock.synchronize do
         self.server_spawned = true
       end
@@ -86,14 +86,13 @@ module Komodor
             action = data['action']
             q      = data['queue'].to_sym if data['queue']
 
-            Komodor.write("connected :: #{data.inspect}")
+            Komodor.write(:info, "connected :: #{data.inspect}")
 
             case action
             when 'quit', 'exit'
-              FileUtils.rm PIDFILE if File.exists?(PIDFILE)
+              FileUtils.rm config.pidfile if File.exists?(config.pidfile)
               exit 0
             when 'protect'
-              Komodor.write "herding"
               Herd.protect!
               sock.puts YAML.dump(response: "ok", running: Herd.running)
             when 'get'
@@ -103,7 +102,6 @@ module Komodor
               collection.delete(q) if queue
               sock.puts YAML.dump(response(collection))
             when 'set'
-              Komodor.write "setting"
               collection[q] = Herd[q] unless collection[q]
               sock.puts YAML.dump(collection[q])
             else
@@ -114,7 +112,7 @@ module Komodor
               sock.puts YAML.dump(response: resp)
             end
           rescue => e
-            Komodor.write("[ERRROR] #{[e.class, e.message].join(" ~> ")}")
+            Komodor.write(:error, "[ERRROR] #{[e.class, e.message].join(" ~> ")}")
           ensure
             sock.close
           end
@@ -129,11 +127,11 @@ module Komodor
     end
 
     def running?
-      return false unless File.exists?(PIDFILE)
-      Process.kill(0, File.read(PIDFILE).chomp.to_i)
+      return false unless File.exists?(config.pidfile)
+      Process.kill(0, File.read(config.pidfile).chomp.to_i)
       true
     rescue Errno::ESRCH
-      FileUtils.rm PIDFILE
+      FileUtils.rm config.pidfile
       false
     end
 
@@ -145,7 +143,7 @@ module Komodor
     end
 
     def send_data(opts)
-      socket = TCPSocket.new(HOST, PORT)
+      socket = TCPSocket.new(config.host, config.port)
       socket.puts(build_opts(opts))
       YAML.load(socket.read)
     ensure
@@ -164,6 +162,14 @@ module Komodor
         blk: blk
       })
     end
+  end
+
+  # Default config
+  config do |conf|
+    conf.pidfile = "/tmp/komodor.pid"
+    conf.logger  = nil
+    conf.host    = "0"
+    conf.port    = 60001
   end
 end
 

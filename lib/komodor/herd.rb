@@ -102,7 +102,7 @@ module Komodor
 
     def complete
       @status = :done
-      Komodor.write "completing #{inspect}"
+      Komodor.write :debug, "completing #{inspect}"
     end
   end
 end

@@ -36,7 +36,7 @@ describe Komodor::Herd do
           end
         end
         @srv = Thread.new {Komodor.start!}
-        sleep 0.5
+        sleep 0.3
       end
 
       after :all do
