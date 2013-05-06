@@ -51,6 +51,7 @@ module Komodor
       def start(&runblk)
         return if started?
         raise KeyRequired, "your herd requires a key to start" unless key
+        raise NoStartBlock, "no start block provided" unless block_given?
         @started = true
         Komodor << key
 
@@ -67,6 +68,16 @@ module Komodor
             end
           end
         end
+      end
+
+      def stop
+        return unless hooks[:stop]
+        runners.select {|r| r.status == :running}.each do |runner|
+          runner.complete
+          runner.instance_eval(&hooks[:stop])
+        end
+        @worker.kill
+        runners
       end
 
       def add(cmd, &callback)

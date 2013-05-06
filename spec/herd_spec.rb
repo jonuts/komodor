@@ -1,5 +1,24 @@
 require 'spec_helper'
 
+class GoodHerd < Komodor::Herd
+  key :good
+  cmd :foo
+  on(:start) do
+    while File.exists?(foo) do
+      sleep 0.1
+    end
+    complete
+  end
+  on(:stop) do
+    self.message = "goodbye, cruel world"
+  end
+end
+
+class ErrorHerd < Komodor::Herd
+  key :bad
+  on(:start) {lolerror}
+end
+
 describe Komodor::Herd do
   describe "setup" do
     context "invalid setup" do
@@ -7,42 +26,23 @@ describe Komodor::Herd do
         class FooHerd < Komodor::Herd; end
       end
 
-      after do
-        Komodor::Herd.send(:collection).clear
-        Object.send(:remove_const, :FooHerd)
-      end
-
       it "throws an error if no key is provided" do
-        expect { Komodor::Herd.protect! }.to raise_error(Komodor::Herd::KeyRequired)
+        expect { FooHerd.start }.to raise_error(Komodor::Herd::KeyRequired)
       end
 
       it "throws an error if no startup block is provided" do
         FooHerd.key(:foo)
-        expect { Komodor::Herd.protect! }.to raise_error(Komodor::Herd::NoStartBlock)
+        expect { FooHerd.start }.to raise_error(Komodor::Herd::NoStartBlock)
       end
     end
 
     context "valid setup" do
       before :all do
-        class FooHerd < Komodor::Herd
-          key :foo
-          cmd :foo
-
-          on(:start) do
-            while File.exists?(foo)
-              sleep 0.1
-            end
-            complete
-          end
-        end
         @srv = Thread.new {Komodor.start!}
         sleep 0.3
       end
 
       after :all do
-        Komodor::Herd.send(:collection).clear
-        Komodor.remove(:foo)
-        Object.send(:remove_const, :FooHerd)
         @srv.kill
       end
 
@@ -50,11 +50,11 @@ describe Komodor::Herd do
         before :all do
           @condition = "/tmp/__herdtest"
           FileUtils.touch(@condition)
-          Komodor.add(:foo, @condition)
+          Komodor.add(:good, @condition)
         end
 
         before :each do
-          @runners = Komodor.runners(:foo)[:response]
+          @runners = Komodor.runners(:good)[:response]
         end
 
         it "starts a new runner" do
@@ -68,7 +68,30 @@ describe Komodor::Herd do
         it "should stop execution when condition is no longer met" do
           FileUtils.rm(@condition)
           sleep 0.2
-          Komodor.runners(:foo)[:response].first.status.should eql(:done)
+          Komodor.runners(:good)[:response].last.status.should eql(:done)
+        end
+      end
+
+      describe "stopping" do
+        before :all do
+          @condition = "/tmp/__herdtest"
+          FileUtils.touch(@condition)
+          Komodor.add(:good, @condition)
+          sleep 0.2
+          Komodor.stop(:good)
+          @runner = Komodor.runners(:good)[:response].last
+        end
+
+        it "marks runners as complete" do
+          @runner.status.should eql(:done)
+        end
+
+        it "runs the stop hook" do
+          @runner.message.should eql("goodbye, cruel world")
+        end
+
+        it "kills the worker thread" do
+          GoodHerd.instance_variable_get(:@worker).should_not be_alive
         end
       end
     end
@@ -76,20 +99,13 @@ describe Komodor::Herd do
 
   describe "errors" do
     before :all do
-      class FooHerd < Komodor::Herd
-        key :foo
-        on(:start) {lolerror}
-      end
       @srv = Thread.new {Komodor.start!}
       sleep 0.3
-      Komodor.add(:foo, true)
-      @runners = Komodor.runners(:foo)[:response]
+      Komodor.add(:bad, true)
+      @runners = Komodor.runners(:bad)[:response]
     end
 
     after :all do
-      Komodor::Herd.send(:collection).clear
-      Komodor.remove(:foo)
-      Object.send(:remove_const, :FooHerd)
       @srv.kill
     end
 
