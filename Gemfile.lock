@@ -1,0 +1,48 @@
+GIT
+  remote: https://github.com/ngty/sourcify
+  revision: ab42747cb3b7e0f3a39bdf5cf3fc1008a27519f3
+  specs:
+    sourcify (0.6.0.rc4)
+      file-tail (~> 1.0.10)
+      ruby2ruby (~> 1.3.1)
+      ruby_parser (~> 2.3.1)
+      sexp_processor (~> 3.2.0)
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    coderay (1.0.9)
+    diff-lcs (1.2.4)
+    file-tail (1.0.12)
+      tins (~> 0.5)
+    method_source (0.8.1)
+    oj (2.0.12)
+    pry (0.9.12.1)
+      coderay (~> 1.0.5)
+      method_source (~> 0.8)
+      slop (~> 3.4)
+    rspec (2.13.0)
+      rspec-core (~> 2.13.0)
+      rspec-expectations (~> 2.13.0)
+      rspec-mocks (~> 2.13.0)
+    rspec-core (2.13.1)
+    rspec-expectations (2.13.0)
+      diff-lcs (>= 1.1.3, < 2.0)
+    rspec-mocks (2.13.1)
+    ruby2ruby (1.3.1)
+      ruby_parser (~> 2.0)
+      sexp_processor (~> 3.0)
+    ruby_parser (2.3.1)
+      sexp_processor (~> 3.0)
+    sexp_processor (3.2.0)
+    slop (3.4.4)
+    tins (0.7.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  oj
+  pry
+  rspec
+  sourcify!
