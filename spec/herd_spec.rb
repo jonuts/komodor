@@ -53,7 +53,7 @@ describe Komodor::Herd do
         end
 
         before :each do
-          @runners = Komodor.runners(:good)[:response]
+          @runners = Komodor.runners(:good, :running)[:response]
         end
 
         it "starts a new runner" do
@@ -67,7 +67,7 @@ describe Komodor::Herd do
         it "should stop execution when condition is no longer met" do
           FileUtils.rm(@condition)
           sleep 0.2
-          Komodor.runners(:good)[:response].last.status.should eql(:done)
+          Komodor.runners(:good)[:response].reject{|r| r.status == :waiting}.last.status.should eql(:done)
         end
       end
 
@@ -78,7 +78,7 @@ describe Komodor::Herd do
           Komodor.add(:good, @condition)
           sleep 0.2
           Komodor.stop(:good)
-          @runner = Komodor.runners(:good)[:response].last
+          @runner = Komodor.runners(:good)[:response].reject{|r| r.status == :waiting}.last
         end
 
         it "marks runners as complete" do
@@ -101,7 +101,7 @@ describe Komodor::Herd do
       @srv = Thread.new {Komodor.start!}
       sleep 0.3
       Komodor.add(:bad, true)
-      @runners = Komodor.runners(:bad)[:response]
+      @runners = Komodor.runners(:bad)[:response].reject{|r| r.status == :waiting}
     end
 
     after :all do

@@ -8,6 +8,7 @@ Bundler.require :default
 require_relative "komodor/server"
 require_relative "komodor/request"
 require_relative "komodor/herd"
+require_relative "komodor/runner"
 
 module Komodor
   class << self

@@ -55,24 +55,20 @@ module Komodor
 
         @worker = Thread.new do
           loop do
-            Thread.start(queue.shift) do |cmd|
-              runner = new(cmd)
-              begin
-                runner.instance_eval(&runblk)
-              rescue => e
-                runner.status = :error
-                runner.message = [e.class, e.message].join(" ~> ")
-              end
+            runner = Runner.new(cmd)
+            runners << runner
+            runner.worker_thread = Thread.start(queue.shift) do |cmd|
+              runner.run!(cmd, &runblk)
             end
           end
         end
+        runners
       end
 
       def stop
-        return unless hooks[:stop]
         runners.select {|r| r.status == :running}.each do |runner|
           runner.complete
-          runner.instance_eval(&hooks[:stop])
+          runner.instance_eval(&hooks[:stop]) if hooks[:stop]
         end
         @worker.kill
         runners
@@ -84,13 +80,16 @@ module Komodor
       end
 
       def runners(*opts)
-        @runners ||= []
+        return @runners ||= [] if opts.empty?
+        status = opts.first
+        @runners.select {|r| r.status.to_s == status.to_s}
       end
 
       private
 
-      def cmd(name)
-        define_method(name) { args[:cmd] }
+      def cmd(name=nil)
+        return @__cmd__ unless name
+        @__cmd__ = name
       end
 
       def on(meth, &blk)
@@ -104,21 +103,6 @@ module Komodor
       def collection
         @__collection__ ||= []
       end
-    end
-
-    def initialize(args)
-      @status = :running
-      @args = args
-      self.class.runners << self
-    end
-
-    attr_reader :args
-    attr_accessor :status, :message
-
-    def complete(msg=nil)
-      @status = :done
-      @message = msg || "done"
-      Komodor.write :debug, "completing #{inspect}"
     end
   end
 end

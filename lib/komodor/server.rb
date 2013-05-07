@@ -37,6 +37,9 @@ module Komodor
     end
 
     def quit(req)
+      queues.values.each do |herd|
+        herd.stop
+      end
       FileUtils.rm config.pidfile if File.exists?(config.pidfile)
       exit 0
     end
