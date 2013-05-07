@@ -66,7 +66,7 @@ module Komodor
       end
 
       def stop
-        runners.select {|r| r.status == :running}.each do |runner|
+        runners(:running).each do |runner|
           runner.complete
           runner.instance_eval(&hooks[:stop]) if hooks[:stop]
         end
