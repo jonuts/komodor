@@ -28,5 +28,14 @@ module Komodor
     def to_yaml_properties
       [:@status, :@message, :@args]
     end
+
+    def every(seconds)
+      loop do
+        next_run = Time.now + seconds
+        yield
+        stime = next_run - Time.now
+        sleep stime if stime > 0
+      end
+    end
   end
 end
