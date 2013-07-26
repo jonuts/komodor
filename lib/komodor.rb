@@ -27,7 +27,7 @@ module Komodor
     def write(lvl, stuff)
       if config.logger
         config.logger.send(lvl, stuff)
-      elsif config.suppress_output
+      elsif !config.suppress_output
         STDOUT.puts stuff
       end
     end
