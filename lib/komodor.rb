@@ -52,13 +52,19 @@ module Komodor
         exit 0
       end
 
-      pid = Process.fork do
+      fork do
+        Process.setsid
+        exit if fork
         $0 = "[komodor]"
-        start!
-      end
 
-      File.open(config.pidfile, 'w') {|f| f.puts pid}
-      write :info, "[komodor] running. pid #{pid}"
+        Dir.chdir('/')
+        File.open(config.pidfile, 'w') {|f| f << Process.pid}
+        File.umask 0000
+
+        start!
+
+        write :info, "[komodor] running. pid #{Process.pid}"
+      end
     end
 
     def start!
